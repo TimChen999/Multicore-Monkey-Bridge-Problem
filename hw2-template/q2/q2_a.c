@@ -28,7 +28,10 @@ void MatrixMult(char file1[], char file2[], int T)
     double mat1[m][n];
     for(int i = 0; i < m; i++){
         for(int j = 0; j < n; j++){
-             fscanf(fileOne, "%f", &mat1[m][n]);
+            fscanf(fileOne, "%f", &mat1[i][j]);
+
+            //Print debug
+            //printf("%f", mat1[i][j]);
         }
     }
 
@@ -36,7 +39,10 @@ void MatrixMult(char file1[], char file2[], int T)
     double mat2[n][x];
     for(int i = 0; i < n; i++){
         for(int j = 0; j < x; j++){
-             fscanf(fileTwo, "%f", &mat1[m][n]);
+            fscanf(fileTwo, "%f", &mat1[i][j]);
+
+            //Print debug
+            //printf("%f", mat2[i][j]);
         }
     }
 
@@ -47,10 +53,11 @@ void MatrixMult(char file1[], char file2[], int T)
     int nPerThread = n/T;
     int remainder = n % T;
 
-    //Start and end "n" values for each thread [start, end] based on index, start inclusive, end exclusive 
+    //Start and end "n" values for each thread [start, end] based on ID index, start inclusive, end exclusive 
     int nThread[T][2];
     int current = 0;
     for(int i = 0; i < T; i++){
+        //Set start for thread ID "i"
         nThread[i][0] = current;
         if(i < remainder){
             current = current + nPerThread + 1;
@@ -58,6 +65,7 @@ void MatrixMult(char file1[], char file2[], int T)
         else{
             current = current + nPerThread;
         }
+        //Set end for thread ID "i"
         nThread[i][1] = current;
     }
 
@@ -66,21 +74,30 @@ void MatrixMult(char file1[], char file2[], int T)
     #pragma omp parallel //Parallel section
     {
 
-        //Determine which n part each thread solves
+        //Determine index for which "n" part each thread solves
         int ID = omp_get_thread_num();
         
         //Calculate array for each thread
         for(int i = 0; i < m; i++){
             for(int j = 0; j < x; j++){
-                //C(i,j) = A(i,1) * A(1,j) + A(i,2) * A(2,j) + ... + A(i,n) * A(n,j)
+                //C(i,j) = A(i,1) * B(1,j) + A(i,2) * B(2,j) + ... + A(i,n) * B(n,j)
+                int current_c = 0;
 
-                //Add lock for modifying each c value since multiple threads will be trying to add to each one
+                //Calculate from start and end for value "n" assigned to current thread
+                for(int k = nThread[ID][0]; k < nThread[ID][1]; k++){
+                    current_c =+ mat1[i][k] + mat2[k][j];
+                }
 
+                //Only one thread can add to the resulting matrix at a time
+                #pragma omp atomic
+                matRes[i][j] =+ current_c;
             }
         }
-
-        //Additional calculations for remainder part
     }
+
+    //Return result once all threads finish
+    #pragma omp barrier
+    return matRes;
 
 }
 
@@ -121,9 +138,9 @@ void main(int argc, char *argv[])
         c32 = a31*b12 + a32*b22 + a33*b32 + a34*b42
 
         Threading: Lets say there are 2 threads to calculate everything
-        (int) 4/2 = 1 (1 "n" per thread)
+        (int) 4/2 = 2 (2 "n" per thread)
 
-        T(0) Calculates:
+        T(0) Calculates (n = 1,2):
         c11 = a11*b11 + a12*b21 
         c12 = a11*b12 + a12*b22 
 
@@ -133,7 +150,7 @@ void main(int argc, char *argv[])
         c31 = a31*b11 + a32*b21
         c32 = a31*b12 + a32*b22 
 
-        T(1) Calculates
+        T(1) Calculates (n = 3,4):
         c11 = a13*b31 + a14*b41
         c12 = a13*b32 + a14*b42
 
