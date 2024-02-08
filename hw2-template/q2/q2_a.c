@@ -85,19 +85,21 @@ void MatrixMult(char file1[], char file2[], int T)
 
                 //Calculate from start and end for value "n" assigned to current thread
                 for(int k = nThread[ID][0]; k < nThread[ID][1]; k++){
-                    current_c =+ mat1[i][k] + mat2[k][j];
+                    current_c += mat1[i][k] + mat2[k][j];
                 }
 
                 //Only one thread can add to the resulting matrix at a time
                 #pragma omp atomic
-                matRes[i][j] =+ current_c;
+                matRes[i][j] += current_c;
             }
         }
     }
 
     //Return result once all threads finish
     #pragma omp barrier
-    return matRes;
+
+    //How to output?
+    
 
 }
 
@@ -163,4 +165,8 @@ void main(int argc, char *argv[])
         Remainder: If "n" does not divide evenly by threads, first #"remainder" threads do an extra "n"
         
         Result: add "c" values from each thread to get final "c" values
+
+        GCC: 
+        gcc -lpthread -fopenmp q2_a.c -o q2a 
+        ./q2a
     */

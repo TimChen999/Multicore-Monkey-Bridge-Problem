@@ -1,6 +1,7 @@
 package q1;
 
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -24,7 +25,8 @@ public class Monkey {
     final Lock lock = new ReentrantLock();
 
     //Notify monkeys new spot is open
-    final Condition spotOpen = lock.newCondition(); //TODO: Use this to queue another monkey when a spot opens
+    final Lock lockCondition = new ReentrantLock();
+    final Condition spotOpen = lockCondition.newCondition(); //TODO: Use this to queue another monkey when a spot opens
 
     //TODO: Kong implementation
     //Since kong's direction is different from all other monkeys, none of them will get on the bridge with it.
@@ -115,7 +117,12 @@ public class Monkey {
 
         //Check if monkey can enter (Goal: use notify (conditional variable) to announce open spots
         while(!enterBridgeFromLine(direction, pos)){
-            Thread.sleep(10);
+            //Thread.sleep(10);
+
+            //Track with conditional variable
+            lockCondition.lock();
+            spotOpen.await(100, TimeUnit.NANOSECONDS); //100 ns max wait until timeout, try to enter bridge
+            lockCondition.unlock();
         }
         System.out.println("New Monkey on bridge");
     }
@@ -123,10 +130,18 @@ public class Monkey {
     // After crossing the river, every monkey calls this method which
     // allows other monkeys to climb the rope./
     public void LeaveRope() {
+        //Leave rope
         lock.lock();
         numOnBridge--;
         System.out.println("Monkey leaves bridge, Num Monkey: " + numOnBridge);
         lock.unlock();
+
+        //Notify condition (While there are spots and monkeys waiting)
+        lockCondition.lock();
+        spotOpen.notifyAll(); //CAUSES ERROR, this line doesn't finish
+        lockCondition.unlock();
+        System.out.println("Notify Condition");
+
     }
 
     /**
