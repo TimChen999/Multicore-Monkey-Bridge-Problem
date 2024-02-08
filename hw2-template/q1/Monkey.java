@@ -121,7 +121,7 @@ public class Monkey {
 
             //Track with conditional variable
             lockCondition.lock();
-            spotOpen.await(100, TimeUnit.NANOSECONDS); //100 ns max wait until timeout, try to enter bridge
+            spotOpen.await(1000, TimeUnit.NANOSECONDS); //1000 ns max wait until timeout, try to enter bridge
             lockCondition.unlock();
         }
         System.out.println("New Monkey on bridge");
@@ -138,7 +138,7 @@ public class Monkey {
 
         //Notify condition (While there are spots and monkeys waiting)
         lockCondition.lock();
-        spotOpen.notifyAll(); //CAUSES ERROR, this line doesn't finish
+        spotOpen.signalAll(); //CAUSES ERROR, this line doesn't finish
         lockCondition.unlock();
         System.out.println("Notify Condition");
 
