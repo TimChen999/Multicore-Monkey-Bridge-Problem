@@ -20,6 +20,7 @@ public class Monkey {
     public int numOnBridge;
     public int dirOfBridge; //Current direction of monkeys on bridge
     public static int monkeyID; //Keeps track of IDs of monkeys (for debugging)
+    public static boolean waitingKong;
 
     //Lock for accessing/modifying waiting list
     final Lock lock = new ReentrantLock();
@@ -34,7 +35,7 @@ public class Monkey {
         //Same direction, can enter bridge
         if(numOnBridge < 3 && waitList.size() == 0 && dir == dirOfBridge){
             numOnBridge++;
-            //System.out.println("Enter directly, same dir, Num Monkey: " + numOnBridge);
+            System.out.println("Enter directly, Dir: " + dir + " Num Monkey: " + numOnBridge);
             lock.unlock();
             return true;
         }
@@ -42,7 +43,7 @@ public class Monkey {
         if(numOnBridge == 0){
             numOnBridge++;
             dirOfBridge = dir;
-            //System.out.println("Enter directly, different dir, Dir: " + dir + " Num Monkey: " + numOnBridge);
+            System.out.println("Enter directly, Dir: " + dir + " Num Monkey: " + numOnBridge);
             lock.unlock();
             return true;
         }
@@ -62,7 +63,7 @@ public class Monkey {
         if(numOnBridge < 3 && waitList.indexOf(pos) == 0 && dir == dirOfBridge){
             numOnBridge++;
             waitList.remove(pos);
-            //System.out.println("Enter from line, same dir, ID: " + pos.ID + " Num Monkey: " + numOnBridge);
+            System.out.println("Enter from line, Dir: " + dir + " ID: " + pos.ID + " Num Monkey: " + numOnBridge);
             lock.unlock();
             return true;
         }
@@ -71,7 +72,7 @@ public class Monkey {
             numOnBridge++;
             dirOfBridge = dir;
             waitList.remove(pos);
-            //System.out.println("Enter from line, different dir, ID: " + pos.ID + " Dir: " + dir + " Num Monkey: " + numOnBridge);
+            System.out.println("Enter from line, Dir: " + dir + " ID: " + pos.ID + " Num Monkey: " + numOnBridge);
             lock.unlock();
             return true;
         }
@@ -83,7 +84,7 @@ public class Monkey {
     public MonkeyPosition enterLine(){
         lock.lock();
         MonkeyPosition pos = new MonkeyPosition(monkeyID);
-        //System.out.println("Enter waiting line: " + pos.ID);
+        System.out.println("Enter waiting line: " + pos.ID);
         waitList.add(pos);
         monkeyID = monkeyID + 1;
         lock.unlock();
@@ -94,11 +95,16 @@ public class Monkey {
     public MonkeyPosition enterLineKong(){
         lock.lock();
         MonkeyPosition pos = new MonkeyPosition(monkeyID);
-        //System.out.println("Enter waiting line kong: " + pos.ID);
+        System.out.println("Enter waiting line kong: " + pos.ID);
         waitList.add(0,pos);
         monkeyID = monkeyID + 1;
         lock.unlock();
         return pos;
+    }
+
+    //Function for setting waiting for kong boolean
+    public synchronized void setKongWait(boolean status){
+        waitingKong = status;
     }
 
     //Monkey initialization
@@ -108,6 +114,7 @@ public class Monkey {
         numOnBridge = 0;
         dirOfBridge = 0;
         monkeyID = 0;
+        waitingKong = true;
     }
 
     // declare the variables here
@@ -118,14 +125,18 @@ public class Monkey {
     public void ClimbRope(int direction) throws InterruptedException {
         //System.out.println("New Monkey tries to go on bridge");
 
-        //Bridge has spots, enter directly
-        if(enterBridge(direction)){
-            //System.out.println("New Monkey on bridge");
-            return;}
+        //Bridge has spots, enter directly, this can only be done if kong is not waiting
+        if(waitingKong == false) {
+            if (enterBridge(direction)) {
+                //System.out.println("New Monkey on bridge");
+                return;
+            }
+        }
 
         //No spots, enter waiting list and wait
         MonkeyPosition pos;
         if(direction == -1){
+            setKongWait(true);
             pos = enterLineKong();
         } else {
             pos = enterLine();
@@ -138,6 +149,11 @@ public class Monkey {
             lockCondition.unlock();
         }
         //System.out.println("New Monkey on bridge");
+
+        //Kong finished waiting, let monkeys directly enter bridge again
+        if(direction == -1){
+            setKongWait(false);
+        }
 
         //Notify monkeys if a monkey gets on bridge from line and spots are still open (This can happen if the bridge changes direction and one monkey enters)
         if(numOnBridge < 3){
@@ -155,7 +171,7 @@ public class Monkey {
         //Leave rope
         lock.lock();
         numOnBridge--;
-        //System.out.println("Monkey leaves bridge, Num Monkey: " + numOnBridge);
+        System.out.println("Monkey leaves bridge, Num Monkey: " + numOnBridge);
         lock.unlock();
 
         //Notify condition, spot opened up
